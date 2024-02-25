@@ -1,0 +1,9 @@
+[submodule "TradingApp/external/glm"]
+	path = TradingApp/external/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "TradingApp/external/ImGui"]
+	path = TradingApp/external/ImGui
+	url = https://github.com/ocornut/imgui.git
+[submodule "TradingApp/external/ImPlot"]
+	path = TradingApp/external/ImPlot
+	url = https://github.com/epezent/implot.git
