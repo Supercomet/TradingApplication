@@ -26,7 +26,9 @@ set(IMPLOT_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/implot)
 #
 # Set include paths
 #
-include_directories (TradingApp/src/
+include_directories (
+TradingApp/src/
+TradingApp/include/
                      ${GLAD_PATH}/include/
                      ${SDL_PATH}/include/
                      ${SDL_PATH}/include/sdl2
@@ -47,8 +49,8 @@ file (GLOB VENDORS_SOURCES ${GLAD_PATH}/src/*.c
 								   ${IMGUI_PATH}/*.cpp
 								   ${IMPLOT_PATH}/*.cpp
 									)
-file (GLOB_RECURSE PROJECT_HEADERS TradingApp/src/*.hpp
-                                   TradingApp/src/*.h)
+file (GLOB_RECURSE PROJECT_HEADERS TradingApp/include/*.hpp
+                                   TradingApp/include/*.h)
 file (GLOB_RECURSE PROJECT_SOURCES TradingApp/src/*.cpp
                                    TradingApp/src/*.cxx
                                    TradingApp/src/*.cc
