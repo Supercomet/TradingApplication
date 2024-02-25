@@ -96,4 +96,6 @@ set_target_properties (${PROJECT_NAME} PROPERTIES
 #   # Include directories
 #   target_include_directories(TradingApp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 #   
+
+set_property(TARGET TradingApp PROPERTY CXX_STANDARD 20)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT TradingApp) # set startup proj for convenience
