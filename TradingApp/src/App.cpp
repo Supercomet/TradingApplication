@@ -14,6 +14,21 @@
 #include <implot.h>
 #include <implot_internal.h>
 
+
+template <typename T>
+int BinarySearch(const T* arr, int l, int r, T x) {
+    if (r >= l) {
+        int mid = l + (r - l) / 2;
+        if (arr[mid] == x)
+            return mid;
+        if (arr[mid] > x)
+            return BinarySearch(arr, l, mid - 1, x);
+        return BinarySearch(arr, mid + 1, r, x);
+    }
+    return l;
+    return -1;
+}
+
 void sdldie(const char *msg)
 {
     printf("%s: %s\n", msg, SDL_GetError());
@@ -291,7 +306,7 @@ bool App::ParseLine(std::fstream& file, DataFrame& outFrame, std::string& outNam
         && std::getline(file, name, '\n')
         )
     {
-		outFrame.date = !date.empty() ? (double)std::stoull(date) : 0;
+		outFrame.date = !date.empty() ? (double)(std::stoull(date)/1000) : 0;
 		outFrame.open = !open.empty() ? std::stod(open) : 0;
 		outFrame.high = !high.empty() ? std::stod(high) : 0;
 		outFrame.low = !low.empty() ? std::stod(low) : 0;
@@ -325,12 +340,12 @@ void App::ShowTraderWindow()
         DataStore& ds = dataMap[names[selector]];
         
         if (ImPlot::BeginPlot("My Stock Chart",ImVec2(-1,0))) {
-            ImPlot::SetupAxes(nullptr,nullptr,0,ImPlotAxisFlags_AutoFit|ImPlotAxisFlags_RangeFit);
+            ImPlot::SetupAxes("Date", "Price", 0, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_RangeFit);
             ImPlot::SetupAxesLimits(ds.date.front(), ds.date.back(), ds.minimum, ds.maximum);
             ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Time);
             ImPlot::SetupAxisLimitsConstraints(ImAxis_X1, ds.date.front(), ds.date.back());
             double oneDay = 60 * 60 * 24 * 1;
-            ImPlot::SetupAxisZoomConstraints(ImAxis_X1, oneDay, ds.date.back() - ds.date.front());
+            ImPlot::SetupAxisZoomConstraints(ImAxis_X1, oneDay*5, ds.date.back() - ds.date.front());
             ImPlot::SetupAxisFormat(ImAxis_Y1, "$%.0f");
 
             static ImVec4 bullCol = ImVec4(0.000f, 1.000f, 0.441f, 1.000f);
@@ -342,7 +357,7 @@ void App::ShowTraderWindow()
           
             int numItems = std::min( (int)ds.size(), 218);
 
-            App::PlotCandlestick(ds.name.c_str(), ds.date.data(), ds.open.data(), ds.close.data(), ds.low.data(), ds.high.data(), numItems, tooltip, 0.25f, bullCol, bearCol);
+            App::PlotCandlestick(ds.name.c_str(), ds.date.data(), ds.open.data(), ds.close.data(), ds.low.data(), ds.high.data(), ds.size(), tooltip, 0.25f, bullCol, bearCol);
             ImPlot::EndPlot();
         }
 
@@ -361,7 +376,7 @@ void App::PlotCandlestick(const char* label_id, const double* xs, const double* 
     // custom tool
     if (ImPlot::IsPlotHovered() && tooltip) {
         ImPlotPoint mouse   = ImPlot::GetPlotMousePos();
-        mouse.x             = ImPlot::RoundTime(ImPlotTime::FromDouble(mouse.x), ImPlotTimeUnit_Day).ToDouble();
+        mouse.x             = ImPlot::RoundTime(ImPlotTime::FromDouble(mouse.x), ImPlotTimeUnit_Hr).ToDouble();
         float  tool_l       = ImPlot::PlotToPixels(mouse.x - half_width * 1.5, mouse.y).x;
         float  tool_r       = ImPlot::PlotToPixels(mouse.x + half_width * 1.5, mouse.y).x;
         float  tool_t       = ImPlot::GetPlotPos().y;
@@ -370,8 +385,8 @@ void App::PlotCandlestick(const char* label_id, const double* xs, const double* 
         draw_list->AddRectFilled(ImVec2(tool_l, tool_t), ImVec2(tool_r, tool_b), IM_COL32(128,128,128,64));
         ImPlot::PopPlotClipRect();
         // find mouse location index
-        //int idx = MyImPlot::BinarySearch(xs, 0, count - 1, mouse.x);
-        int idx = 0;
+        int idx = BinarySearch(xs, 0, count - 1, mouse.x);
+        //int idx = 0;
         // render tool tip (won't be affected by plot clip rect)
         if (idx != -1) {
             ImGui::BeginTooltip();
