@@ -2,12 +2,13 @@
 
 #include <fstream>
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include "imgui.h"
 
 struct DataFrame
 {
-	uint64_t date{};
+	double date{};
 	double open{};
 	double close{};
 	double high{};
@@ -17,6 +18,23 @@ struct DataFrame
 	void Print();
 };
 
+struct DataStore
+{
+	std::string name;
+	std::vector<double> date;
+	std::vector<double> open;
+	std::vector<double> close;
+	std::vector<double> high;
+	std::vector<double> low;
+	std::vector<double> volume;
+
+	double maximum{-DBL_MAX };
+	double minimum{ DBL_MAX };
+
+	void PushData(const DataFrame& df);
+	size_t size() { return date.size(); };
+};
+
 
 class App
 {
@@ -24,7 +42,8 @@ public:
 	void Run();
 
 private:
-	std::unordered_map<std::string, std::vector<DataFrame>> dataMap;
+	std::map<std::string, DataStore> dataMap;
+	std::vector<const char*> names;
 
 	void ParseFile(const char *fileName);
 	bool ParseLine(std::fstream& file, DataFrame& outFrame, std::string& outName);
