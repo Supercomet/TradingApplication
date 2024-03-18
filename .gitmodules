@@ -7,3 +7,7 @@
 [submodule "TradingApp/external/ImPlot"]
 	path = TradingApp/external/ImPlot
 	url = https://github.com/epezent/implot.git
+[submodule "TradingApp/external/curl"]
+	path = TradingApp/external/curl
+	url = https://github.com/curl/curl.git
+	branch = master
