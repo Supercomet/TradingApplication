@@ -3,6 +3,12 @@
 #include <string>
 #include <sstream>
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX   /* don't define min() and max(). */
+#define NOMINMAX
+#endif
 
 #include <glad/glad.h>
 #define SDL_MAIN_HANDLED 
@@ -14,6 +20,9 @@
 #include <implot.h>
 #include <implot_internal.h>
 
+#define BUILDING_LIBCURL
+#define CURL_STATICLIB
+#include <curl/curl.h>
 
 template <typename T>
 int BinarySearch(const T* arr, int l, int r, T x) {
@@ -55,6 +64,24 @@ void checkSDLError(int line = -1)
 
 void App::Run()
 {
+    curl_global_init(CURL_GLOBAL_ALL);
+    CURL* curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_URL, "http://example.com");
+    CURLcode res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+    }
+    else
+    {
+
+    }
+    
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    return;
+
 
     SDL_Window *mainwindow; /* Our window handle */
     SDL_GLContext maincontext; /* Our opengl context handle */

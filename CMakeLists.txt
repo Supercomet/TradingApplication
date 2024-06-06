@@ -18,20 +18,28 @@ else()
   endif()
 endif()
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+
 
 set(SDL_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/sdl2)
 set(GLAD_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/glad)
 set(IMGUI_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/imgui)
 set(IMPLOT_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/implot)
+set(CURL_PATH  ${CMAKE_CURRENT_SOURCE_DIR}/TradingApp/external/curl)
 #
 # Set include paths
 #
+
 include_directories (
 TradingApp/src/
 TradingApp/include/
                      ${GLAD_PATH}/include/
                      ${SDL_PATH}/include/
                      ${SDL_PATH}/include/sdl2
+                     ${CURL_PATH}/include/
+                     ${CURL_PATH}/lib/
                      TradingApp/external/glm/
 					 ${IMGUI_PATH}/
 					 ${IMPLOT_PATH}/
@@ -39,7 +47,8 @@ TradingApp/include/
 #                     TradingApp/external/stb/
 					 
 
-
+#set(CURL_STATICLIB true)
+#add_definitions(-DCURL_STATICLIB)
 #
 # Add files
 #
@@ -70,9 +79,24 @@ add_executable (${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                 ${PROJECT_SHADERS} 
 								#${PROJECT_CONFIGS}
                                 ${VENDORS_SOURCES})
-target_link_libraries (${PROJECT_NAME}
-                       ${SDL_PATH}/lib/x64/sdl2.lib
-                       ${GLAD_LIBRARIES})
+								
+								
+set(BUILD_CURL_EXE false)
+
+set(BUILD_SHARED_LIBS OFF)
+set(BUILD_STATIC_LIBS ON)
+add_subdirectory(${CURL_PATH})
+add_dependencies(${PROJECT_NAME} libcurl)
+								
+set(LIBS ${LIBS} ${SDL_PATH}/lib/x64/sdl2.lib)
+set(LIBS ${LIBS} ${GLAD_LIBRARIES})
+set(LIBS ${LIBS} libcurl)
+
+target_link_libraries(${PROJECT_NAME} ${LIBS})								
+								
+target_link_libraries (${PROJECT_NAME} 
+					   ${LIBS})
+					   
 set_target_properties (${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
 
@@ -97,5 +121,5 @@ set_target_properties (${PROJECT_NAME} PROPERTIES
 #   target_include_directories(TradingApp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 #   
 
-set_property(TARGET TradingApp PROPERTY CXX_STANDARD 20)
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT TradingApp) # set startup proj for convenience
