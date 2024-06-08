@@ -20,10 +20,10 @@
 #include <implot.h>
 #include <implot_internal.h>
 
-#define BUILDING_LIBCURL
-#define CURL_STATICLIB
 #include <curl/curl.h>
 
+#include "Orderbook.h"
+ 
 template <typename T>
 int BinarySearch(const T* arr, int l, int r, T x) {
     if (r >= l) {
@@ -35,7 +35,6 @@ int BinarySearch(const T* arr, int l, int r, T x) {
         return BinarySearch(arr, mid + 1, r, x);
     }
     return l;
-    return -1;
 }
 
 void sdldie(const char *msg)
@@ -64,6 +63,62 @@ void checkSDLError(int line = -1)
 
 void App::Run()
 {
+    
+    OrderBook orderBook;
+
+    const OrderID orderID = 1;
+    orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, orderID, Side::Buy, 20, 100));
+
+    std::cout << orderBook.Size() << std::endl;
+    orderBook.CancelOrder(orderID);
+    std::cout << orderBook.Size() << std::endl;
+
+    srand(01337);
+    for (size_t i = 0; i < 100; i++)
+    {
+        int randomBuy  = int(float(rand()) / RAND_MAX * 200);
+        int randomSell = int(float(rand()) / RAND_MAX * 200);
+        ;       orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, i, Side::Buy, Price(1900 + (i / 17) * 17), randomBuy));
+        orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, i + 2000, Side::Sell, Price(2000 - (i / 17) * 17), randomSell));
+    }
+
+    {
+        OrderBookLevelInfos levels = orderBook.GetOrderInfos();
+
+        printf("== Asks ==\n");
+        for (auto& ask : levels.asks)
+        {
+            printf("Price %4d [%4d]\n", ask.price, ask.quantity);
+        }
+
+        printf("== Bids ==\n");
+        for (auto& bid : levels.bids)
+        {
+            printf("Price %4d [%4d]\n", bid.price, bid.quantity);
+        }
+    }
+
+    printf("\tMatching orders...\n\n");
+    orderBook.MatchOrders();
+
+    {
+        OrderBookLevelInfos levels = orderBook.GetOrderInfos();
+
+        printf("== Asks ==\n");
+        for (auto& ask : levels.asks)
+        {
+            printf("Price %4d [%4d]\n", ask.price, ask.quantity);
+        }
+
+        printf("== Bids ==\n");
+        for (auto& bid : levels.bids)
+        {
+            printf("Price %4d [%4d]\n", bid.price, bid.quantity);
+        }
+    }
+
+    return;
+
     curl_global_init(CURL_GLOBAL_ALL);
     CURL* curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, "http://example.com");
@@ -80,7 +135,6 @@ void App::Run()
     curl_easy_cleanup(curl);
     curl_global_cleanup();
 
-    return;
 
 
     SDL_Window *mainwindow; /* Our window handle */
@@ -269,7 +323,7 @@ void App::ParseFile(const char* fileName)
     {
         std::printf("Cannot open file %s\n", fileName);
         auto cp = std::filesystem::current_path();
-        std::printf("Current path is %s\n", cp.u8string().c_str());
+        std::printf("Current path is %s\n", (char*)cp.u8string().c_str());
        
     }
 
@@ -359,7 +413,7 @@ void App::ShowTraderWindow()
         static bool tooltip = true;
 
         static int selector = 0;
-        if (ImGui::ListBox("Markets", &selector, names.data(), names.size()))
+        if (ImGui::ListBox("Markets", &selector, names.data(), (int)names.size()))
         {
            // light.info.w = light_type_selector + 1;
         }
@@ -381,10 +435,7 @@ void App::ShowTraderWindow()
             ImGui::SameLine(); ImGui::ColorEdit4("##Bull", &bullCol.x, ImGuiColorEditFlags_NoInputs);
             ImGui::SameLine(); ImGui::ColorEdit4("##Bear", &bearCol.x, ImGuiColorEditFlags_NoInputs);
 
-          
-            int numItems = std::min( (int)ds.size(), 218);
-
-            App::PlotCandlestick(ds.name.c_str(), ds.date.data(), ds.open.data(), ds.close.data(), ds.low.data(), ds.high.data(), ds.size(), tooltip, 0.25f, bullCol, bearCol);
+            App::PlotCandlestick(ds.name.c_str(), ds.date.data(), ds.open.data(), ds.close.data(), ds.low.data(), ds.high.data(), (int)ds.size(), tooltip, 0.25f, bullCol, bearCol);
             ImPlot::EndPlot();
         }
 
@@ -457,7 +508,7 @@ void App::PlotCandlestick(const char* label_id, const double* xs, const double* 
 
 void DataFrame::Print()
 {
-    printf("%zd- %lf,%lf,%lf,%lf,%lf \n", date, open,
+    printf("%zd- %lf,%lf,%lf,%lf,%lf \n", (size_t)date, open,
         close,
         high,
         low,
