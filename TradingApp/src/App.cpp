@@ -78,7 +78,7 @@ void App::Run()
     {
         int randomBuy  = int(float(rand()) / RAND_MAX * 200);
         int randomSell = int(float(rand()) / RAND_MAX * 200);
-        ;       orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, i, Side::Buy, Price(1900 + (i / 17) * 17), randomBuy));
+        orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, i, Side::Buy, Price(1900 + (i / 17) * 17), randomBuy));
         orderBook.AddOrder(std::make_shared<Order>(OrderType::GoodTillCancel, i + 2000, Side::Sell, Price(2000 - (i / 17) * 17), randomSell));
     }
 

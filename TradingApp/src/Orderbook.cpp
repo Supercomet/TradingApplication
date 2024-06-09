@@ -36,14 +36,18 @@ Trades OrderBook::MatchOrders()
 
 	while (true)
 	{
+
 		if (allBids.empty() || allAsks.empty())
 		{
 			// no more trades
 			break;
 		}
 
-		auto& [bidPrice, bids] = *allBids.begin();
-		auto& [askPrice, asks] = *allAsks.begin();
+		auto& [refBidPrice, bids] = *allBids.begin();
+		auto& [refAskPrice, asks] = *allAsks.begin();
+
+		Price bidPrice = refBidPrice;
+		Price askPrice = refAskPrice;
 
 		if (bidPrice < askPrice)
 		{
@@ -53,8 +57,8 @@ Trades OrderBook::MatchOrders()
 
 		while (bids.size() && asks.size())
 		{
-			auto& bid = bids.front();
-			auto& ask = asks.front();
+			OrderRef bid = bids.front();
+			OrderRef ask = asks.front();
 
 			Quantity fillQuantity = std::min(bid->remainingQuantity, ask->remainingQuantity);
 
@@ -72,21 +76,21 @@ Trades OrderBook::MatchOrders()
 				allOrders.erase(ask->id);
 			}
 
-			if (bids.empty())
-			{
-				allBids.erase(bidPrice);
-			}
-			if (asks.empty())
-			{
-				allAsks.erase(askPrice);
-			}
-
 			trades.emplace_back(Trade{
 				TradeInfo{bid->id,bid->price, fillQuantity},
 				TradeInfo{ask->id,ask->price, fillQuantity}
 				});
 		}
-
+		
+		// clean up sides
+		if (bids.empty())
+		{
+			allBids.erase(bidPrice);
+		}
+		if (asks.empty())
+		{
+			allAsks.erase(askPrice);
+		}
 	}
 
 	// handle fill and kill
@@ -142,33 +146,18 @@ Trades OrderBook::AddOrder(OrderRef _order)
 
 void OrderBook::CancelOrder(OrderID _orderID)
 {
-	if (allOrders.contains(_orderID) == false)
-	{
-		return;
-	}
+	std::scoped_lock lock(ordersMutex);
 
-	const auto& [order, iter] = allOrders[_orderID];
-	allOrders.erase(_orderID);
+	CancelOrderInternal(_orderID);	
+}
 
-	if (order->side == Side::Buy)
+void OrderBook::CancelOrders(OrderIDs orders)
+{
+	std::scoped_lock lock(ordersMutex);
+
+	for (OrderID id : orders)
 	{
-		auto price = order->price;
-		auto& orders = allBids[price];
-		orders.erase(iter);
-		if (orders.empty())
-		{
-			allBids.erase(price);
-		}
-	}
-	else if(order->side == Side::Sell)
-	{
-		auto price = order->price;
-		auto& orders = allAsks[price];
-		orders.erase(iter);
-		if (orders.empty())
-		{
-			allAsks.erase(price);
-		}
+		CancelOrderInternal(id);
 	}
 }
 

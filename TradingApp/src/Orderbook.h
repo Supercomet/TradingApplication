@@ -87,6 +87,7 @@ public:
 	Trades MatchOrders();
 	Trades AddOrder(OrderRef _order);
 	void CancelOrder(OrderID _orderID);
+	void CancelOrders(OrderIDs orders);
 	Trades ModifyOrder(OrderModify _order);
 	OrderBookLevelInfos GetOrderInfos() const;
 

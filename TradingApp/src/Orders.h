@@ -1,13 +1,18 @@
 #pragma once
 #include <cstdint>
 #include <cassert>
+#include <vector>
 #include <memory>
 #include <list>
 
 enum class OrderType
 {
 	GoodTillCancel,
-	FillAndKill
+	FillAndKill,
+	FillOrKill,
+	GoodForDay,
+	Market,
+
 };
 
 enum class Side
@@ -19,6 +24,7 @@ enum class Side
 using Price = int32_t;
 using Quantity = uint32_t;
 using OrderID = uint64_t;
+using OrderIDs = std::vector<OrderID>;
 
 class Order
 {
