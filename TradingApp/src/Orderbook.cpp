@@ -244,19 +244,33 @@ void OrderBook::PruneGoodForDay(std::stop_token stoken)
 		auto next = std::chrono::system_clock::from_time_t(mktime(&now_parts));
 		auto till = next - now + std::chrono::milliseconds(100);
 
-		std::mutex mutex;
-		std::unique_lock lock(mutex);
-
-		// wait until day ends or stop token requested
-		std::condition_variable_any().wait_until(lock, stoken, now + std::chrono::milliseconds(100), [] { return false; });
-		if (stoken.stop_requested())
+		OrderIDs ordersToCancel;
 		{
-			printf("Prune worker is requested to stop\n");
-			break;
+			std::unique_lock lock(this->ordersMutex);
+			// wait until day ends or stop token requested
+			std::condition_variable_any().wait_until(lock, stoken, now + std::chrono::milliseconds(100), [] { return false; });
+			if (stoken.stop_requested())
+			{
+				printf("Prune worker is requested to stop\n");
+				break;
+			}
+			// mutex is aquired by wait_until
+			for (auto& [entryID,entry] : allOrders)
+			{
+				const auto& [order, _] = entry;
+				if (order->type == OrderType::GoodForDay)
+				{
+					ordersToCancel.push_back(order->id);
+				}
+			}
+			printf("Prune Iteration %2d \n", ++count);
 		}
 
-		printf("Prune Iteration %2d \n", ++count);
-
+		if (ordersToCancel.size())
+		{
+			printf("GoodForDay orders pruned [%llu]\n", ordersToCancel.size());
+			CancelOrders(ordersToCancel);
+		}
 	}
 
 	printf("Prune thread shutdown \n");
