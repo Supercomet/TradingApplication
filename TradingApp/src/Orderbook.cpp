@@ -1,5 +1,23 @@
 #include "Orderbook.h"
 
+#ifndef NOMINMAX   /* don't define min() and max(). */
+#define NOMINMAX
+#endif // !NOMINMAX
+#include <chrono>
+
+OrderBook::OrderBook()
+{
+	GFDPruneThread = std::jthread([this](std::stop_token s) { this->PruneGoodForDay(s); });
+}
+
+OrderBook::~OrderBook()
+{
+	std::this_thread::sleep_for(std::chrono::seconds(4));
+
+	GFDPruneThread.request_stop();
+	GFDPruneThread.join();
+}
+
 bool OrderBook::CanMatch(Side side, Price price) const
 {
 	switch (side)
@@ -198,4 +216,81 @@ OrderBookLevelInfos OrderBook::GetOrderInfos() const
 	}
 
 	return OrderBookLevelInfos{ std::move(bidInfos), std::move(askInfos) };
+}
+
+void OrderBook::PruneGoodForDay(std::stop_token stoken)
+{
+	printf("Starting prune thread  \n");
+
+	constexpr auto dayEndHour = std::chrono::hours(16); // 4pm
+
+	int count = 0;
+
+	while (stoken.stop_requested() == false)
+	{
+		const auto now = std::chrono::system_clock::now();
+		const auto now_c = std::chrono::system_clock::to_time_t(now);
+
+		tm now_parts;
+		localtime_s(&now_parts, &now_c);
+
+		if (now_parts.tm_hour >= dayEndHour.count())
+		{
+			now_parts.tm_mday += 1;
+		}
+		now_parts.tm_min = 0;
+		now_parts.tm_sec = 0;
+
+		auto next = std::chrono::system_clock::from_time_t(mktime(&now_parts));
+		auto till = next - now + std::chrono::milliseconds(100);
+
+		std::mutex mutex;
+		std::unique_lock lock(mutex);
+
+		// wait until day ends or stop token requested
+		std::condition_variable_any().wait_until(lock, stoken, now + std::chrono::milliseconds(100), [] { return false; });
+		if (stoken.stop_requested())
+		{
+			printf("Prune worker is requested to stop\n");
+			break;
+		}
+
+		printf("Prune Iteration %2d \n", ++count);
+
+	}
+
+	printf("Prune thread shutdown \n");
+}
+
+void OrderBook::CancelOrderInternal(OrderID _orderID)
+{
+	if (allOrders.contains(_orderID) == false)
+	{
+		return;
+	}
+
+	const auto [order, iter] = allOrders[_orderID]; // make copy of OrderRef
+	allOrders.erase(_orderID);
+
+	if (order->side == Side::Buy)
+	{
+		auto price = order->price;
+		auto& orders = allBids[price];
+		orders.erase(iter);
+		if (orders.empty())
+		{
+			allBids.erase(price);
+		}
+	}
+	else if(order->side == Side::Sell)
+	{
+		auto price = order->price;
+		auto& orders = allAsks[price];
+		orders.erase(iter);
+		if (orders.empty())
+		{
+			allAsks.erase(price);
+		}
+	}
+	
 }

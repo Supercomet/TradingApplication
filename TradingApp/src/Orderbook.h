@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <numeric>
 
+#include <thread>
+#include <condition_variable>
+
 struct LevelInfo
 {
 	Price price;
@@ -77,6 +80,9 @@ using Trades = std::vector<Trade>;
 class OrderBook
 {
 public:
+	OrderBook();
+	~OrderBook();
+
 	struct OrderEntry
 	{
 		OrderRef order{nullptr};
@@ -93,6 +99,14 @@ public:
 
 	size_t Size() { return allOrders.size(); }
 private:
+
+	void PruneGoodForDay(std::stop_token stoken); 
+
+	void CancelOrderInternal(OrderID orderID);
+	
+	std::mutex ordersMutex;
+	std::jthread GFDPruneThread;
+
 	std::map< Price, OrderReferences, std::greater<int> > allBids;
 	std::map< Price, OrderReferences, std::less<int>    > allAsks;
 	std::unordered_map< OrderID, OrderEntry > allOrders;
