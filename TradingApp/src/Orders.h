@@ -29,24 +29,13 @@ using OrderIDs = std::vector<OrderID>;
 class Order
 {
 public:
-	Order(OrderType _type, OrderID _id, Side _side, Price _price, Quantity _quantity) :
-		type{ _type }
-		, id{ _id }
-		, side{ _side }
-		, price{_price}
-		, initialQuantity{ _quantity }
-		, remainingQuantity{_quantity}
-	{}
+	Order(OrderType _type, OrderID _id, Side _side, Price _price, Quantity _quantity);
 
-	bool IsFilled() const {
-		return remainingQuantity == 0;
-	}
+	bool IsFilled() const;
 
-	void Fill(Quantity quantity) {
-		assert(quantity <= remainingQuantity);
+	void Fill(Quantity quantity);
 
-		remainingQuantity -= quantity;
-	}
+	void ToGoodTillCancel(Price _price);
 
 	Side side{};
 	OrderType type{};
