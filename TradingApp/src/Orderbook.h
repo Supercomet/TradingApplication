@@ -89,7 +89,21 @@ public:
 		OrderReferences::iterator location;
 	};
 
+	struct LevelData
+	{
+		Quantity quantity{};
+		Quantity count{};
+
+		enum class Action
+		{
+			Add,
+			Remove,
+			Match
+		};
+	};
+
 	bool CanMatch(Side side, Price price) const;
+	bool CanFullyFill(Side side, Price price, Quantity initialQuantity) const;
 	Trades MatchOrders();
 	Trades AddOrder(OrderRef _order);
 	void CancelOrder(OrderID _orderID);
@@ -103,10 +117,17 @@ private:
 	void PruneGoodForDay(std::stop_token stoken); 
 
 	void CancelOrderInternal(OrderID orderID);
+
+	void OnOrderAdded(OrderRef order);
+	void OnOrderCancelled(OrderRef order);
+	void OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled);
+
+	void UpdateLevelData(Price price, Quantity quantity, LevelData::Action action);
 	
 	std::mutex ordersMutex;
 	std::jthread GFDPruneThread;
 
+	std::map< Price, LevelData > allData;
 	std::map< Price, OrderReferences, std::greater<int> > allBids;
 	std::map< Price, OrderReferences, std::less<int>    > allAsks;
 	std::unordered_map< OrderID, OrderEntry > allOrders;

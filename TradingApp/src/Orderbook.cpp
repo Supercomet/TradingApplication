@@ -42,9 +42,49 @@ bool OrderBook::CanMatch(Side side, Price price) const
 	break;
 	default:
 	assert(true && "Side not implemented");
-	return false;
 	break;
 	}
+	return false;
+}
+
+bool OrderBook::CanFullyFill(Side side, Price price, Quantity quantity) const
+{
+	if (CanMatch(side, price) == false)
+	{
+		return false;
+	}
+
+	std::optional<Price> threshold;
+
+	if (side == Side::Buy)
+	{
+		const auto [askPrice, _] = *allAsks.begin();
+		threshold = askPrice;
+	}
+	else
+	{
+		const auto [bidPrice, _] = *allBids.begin();
+		threshold = bidPrice;
+	}
+
+	for (const auto&[levelPrice, levelData] : allData)
+	{
+		if (threshold.has_value() &&
+			(side == Side::Buy && *threshold > levelPrice)
+			|| (side == Side::Sell && *threshold < levelPrice) )
+			continue;
+
+		if ((side == Side::Buy && levelPrice > price)
+			|| (side == Side::Sell && levelPrice < price))
+			continue;
+
+		if (quantity <= levelData.quantity)
+			return true;
+
+		quantity -= levelData.quantity;
+	}
+
+	return false;
 }
 
 Trades OrderBook::MatchOrders()
@@ -137,14 +177,59 @@ Trades OrderBook::MatchOrders()
 
 Trades OrderBook::AddOrder(OrderRef _order)
 {
+	std::scoped_lock lock(ordersMutex);
+
 	if (allOrders.contains(_order->id))
 		return {};
 
 	if (_order->type == OrderType::FillAndKill && CanMatch(_order->side, _order->price) == false)
 		return {};
 
-	OrderReferences::iterator iter;
+	// process order by type
+	switch (_order->type)
+	{
+	case OrderType::GoodTillCancel:
+	break;
+	case OrderType::FillAndKill:
+	{
+		if (CanMatch(_order->side, _order->price) == false)
+		{
+			return {};
+		}
+	}
+	break;
+	case OrderType::FillOrKill:
+	{
+		if (CanFullyFill(_order->side, _order->price, _order->initialQuantity) == false)
+		{
+			return {};
+		}
+	}
+	break;
+	case OrderType::GoodForDay:
+	break;
+	case OrderType::Market:
+	{
+		if (_order->side == Side::Buy)
+		{
+			const auto& [worstAsk, _] = *allAsks.rbegin();
+		}
+		else if (_order->side == Side::Sell)
+		{
+			const auto& [worstBid, _] = *allBids.rbegin();
+		}
+		else
+		{
+			return{};
+		}
+	}
+	break;
+	default:
+		return {};
+	break;
+	}
 
+	OrderReferences::iterator iter;
 	if (_order->side == Side::Buy)
 	{
 		auto& orders = allBids[_order->price];
@@ -159,6 +244,8 @@ Trades OrderBook::AddOrder(OrderRef _order)
 	}
 
 	allOrders.insert({ _order->id, OrderEntry{_order,iter}});
+
+	OnOrderAdded(_order);
 	return MatchOrders();
 }
 
@@ -307,4 +394,48 @@ void OrderBook::CancelOrderInternal(OrderID _orderID)
 		}
 	}
 	
+	OnOrderCancelled(order);
+}
+
+void OrderBook::OnOrderAdded(OrderRef order)
+{
+	UpdateLevelData(order->price, order->initialQuantity, LevelData::Action::Add);
+}
+
+void OrderBook::OnOrderCancelled(OrderRef order)
+{
+	UpdateLevelData(order->price, order->remainingQuantity, LevelData::Action::Remove);
+}
+
+void OrderBook::OnOrderMatched(Price price, Quantity quantity, bool isFullyFilled)
+{
+	UpdateLevelData(price, quantity, isFullyFilled ? LevelData::Action::Remove : LevelData::Action::Match);
+}
+
+void OrderBook::UpdateLevelData(Price price, Quantity quantity, LevelData::Action action)
+{
+	auto& data = allData[price];
+
+	switch (action)
+	{
+	case OrderBook::LevelData::Action::Add:
+	{
+		data.count += 1;
+		data.quantity += quantity;
+	}
+	break;	
+	case OrderBook::LevelData::Action::Remove:
+		data.count -= 1; // only if remove
+	case OrderBook::LevelData::Action::Match:
+		data.quantity -= quantity; // both cases we should reduce quant
+	break;
+	default:
+	assert(false && "invalid action");
+	break;
+	}
+
+	// if we run out of orders
+	if (data.count == 0)
+		allData.erase(price);
+
 }
